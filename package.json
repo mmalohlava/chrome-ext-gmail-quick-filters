@@ -11,11 +11,11 @@
     "style": "prettier --write \"src/**/*.{ts,tsx}\"",
     "update-all-deps": "npm update --save"
   },
-  "author": "R3BL LLC",
+  "author": "Michal Malohlava",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chibat/chrome-extension-typescript-starter.git"
+    "url": "https://github.com/mmalohlava/chrome-ext-gmail-quick-filters"
   },
   "dependencies": {
     "@types/chrome": "^0.0.240"

@@ -21,8 +21,8 @@
  *   SOFTWARE.
  */
 
-import { getTodayDate, getYesterdayDate } from "../utils"
+import { getTodayDate, getYesterdayDate } from "../utils";
 
 test("1 + 1 = 2", () => {
-  expect(getYesterdayDate()).toBe("Tue, Dec 24, 2024")
-})
+  expect(getYesterdayDate()).toBe("Tue, Dec 24, 2024");
+});

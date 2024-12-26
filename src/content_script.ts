@@ -1,89 +1,122 @@
-import { getYesterdayDate } from './utils';
-import { getTodayDate } from './utils';
+import { getYesterdayDate } from "./utils";
+import { getTodayDate } from "./utils";
 
-const TODAY_BUTTON_COLOR = '#fffde7';     // Light yellow color
-const YESTERDAY_BUTTON_COLOR = '#ffcdd2';  // Light pink for contrast
+const TODAY_BUTTON_COLOR = "#fffde7"; // Light yellow color
+const YESTERDAY_BUTTON_COLOR = "#ffcdd2"; // Light pink for contrast
 
 const addFilterButtons = () => {
-    const targetNode = document.querySelector('form[role="search"]')?.parentNode as HTMLDivElement; 
+  const targetNode = document.querySelector('form[role="search"]')
+    ?.parentNode as HTMLDivElement;
 
-    if (!targetNode) return;
+  if (!targetNode) return;
 
-    // Create container div for buttons
-    const buttonGroup = document.createElement('div');
-    buttonGroup.style.display = 'inline-flex';
-    buttonGroup.style.gap = '4px';
-    buttonGroup.style.marginLeft = '8px';
-    buttonGroup.style.verticalAlign = 'middle';
+  // Create container div for buttons
+  const buttonGroup = document.createElement("div");
+  buttonGroup.style.display = "inline-flex";
+  buttonGroup.style.gap = "4px";
+  buttonGroup.style.marginLeft = "8px";
+  buttonGroup.style.verticalAlign = "middle";
 
-    // Check if buttons already exist
-    if (document.querySelector('#todayFilterButton') || document.querySelector('#yesterdayFilterButton')) return;
+  // Check if buttons already exist
+  if (
+    document.querySelector("#todayFilterButton") ||
+    document.querySelector("#yesterdayFilterButton")
+  )
+    return;
 
-    // Create today and yesterday filter buttons
-    const todayFilterButton = createFilterButton('todayFilterButton', 'T', 'Today\'s Emails', TODAY_BUTTON_COLOR, `newer_than:1d`);
-    const yesterdayFilterButton = createFilterButton('yesterdayFilterButton', 'Y', 'Yesterday\'s Emails',YESTERDAY_BUTTON_COLOR, `newer_than:2d older_than:1d`);
-    buttonGroup.appendChild(todayFilterButton);
-    buttonGroup.appendChild(yesterdayFilterButton);
+  // Create today and yesterday filter buttons
+  const todayFilterButton = createFilterButton(
+    "todayFilterButton",
+    "T",
+    "Today's Emails",
+    TODAY_BUTTON_COLOR,
+    `newer_than:1d`
+  );
+  const yesterdayFilterButton = createFilterButton(
+    "yesterdayFilterButton",
+    "Y",
+    "Yesterday's Emails",
+    YESTERDAY_BUTTON_COLOR,
+    `newer_than:2d older_than:1d`
+  );
+  buttonGroup.appendChild(todayFilterButton);
+  buttonGroup.appendChild(yesterdayFilterButton);
 
-    // Insert buttons after the search bar
-    targetNode.insertAdjacentElement('afterend', buttonGroup);
-}
+  // Insert buttons after the search bar
+  targetNode.insertAdjacentElement("afterend", buttonGroup);
+};
 
-const createFilterButton = (id: string, label: string, tooltip: string, buttonColor: string, searchQuery: string) => {
-    const button = document.createElement('button');
-    button.id = id;
-    button.className = 'zo';
-    button.textContent = label;
-    button.dataset.tooltip = tooltip;
-    button.style.backgroundColor = buttonColor; // Default Gmail button color
-    button.style.border = '1px solid #dadce0';
-    button.style.borderRadius = '6px';
-    button.style.padding = '4px 8px';
-    button.style.cursor = 'pointer';
+const createFilterButton = (
+  id: string,
+  label: string,
+  tooltip: string,
+  buttonColor: string,
+  searchQuery: string
+) => {
+  const button = document.createElement("button");
+  button.id = id;
+  button.className = "zo";
+  button.textContent = label;
+  button.dataset.tooltip = tooltip;
+  button.style.backgroundColor = buttonColor; // Default Gmail button color
+  button.style.border = "1px solid #dadce0";
+  button.style.borderRadius = "6px";
+  button.style.padding = "4px 8px";
+  button.style.cursor = "pointer";
 
-    button.addEventListener('click', () => {
-        const searchBar = document.querySelector('input[name="q"]') as HTMLInputElement;
+  button.addEventListener("click", () => {
+    const searchBar = document.querySelector(
+      'input[name="q"]'
+    ) as HTMLInputElement;
 
-        if (searchBar) {
-            searchBar.value = searchQuery;
-            const searchButton = document.querySelector('button[aria-label="Search mail"]') as HTMLButtonElement;
-            searchButton?.click();
-        }
-    });
-    return button;
-}
+    if (searchBar) {
+      searchBar.value = searchQuery;
+      const searchButton = document.querySelector(
+        'button[aria-label="Search mail"]'
+      ) as HTMLButtonElement;
+      searchButton?.click();
+    }
+  });
+  return button;
+};
 
+const highlightDates = (
+  emailListContainer: HTMLElement,
+  dateTitle: string,
+  bgColor: string
+) => {
+  console.log(`Looking for date=${dateTitle} to color it with ${bgColor}`);
+  const emailRows = emailListContainer.querySelectorAll(
+    `tr span[title*="${dateTitle}"] span`
+  ); // Locate email rows
 
-const highlightDates = (emailListContainer: HTMLElement, dateTitle: string, bgColor: string) => {
-    console.log(`Looking for date=${dateTitle} to color it with ${bgColor}`);
-    const emailRows = emailListContainer.querySelectorAll(`tr span[title*="${dateTitle}"] span`); // Locate email rows
-
-    emailRows.forEach((row) => {
-        const dateElement = row.parentElement as HTMLElement;
-        // Highlight based on the date
-        dateElement.style.backgroundColor = bgColor;
-    });
+  emailRows.forEach((row) => {
+    const dateElement = row.parentElement as HTMLElement;
+    // Highlight based on the date
+    dateElement.style.backgroundColor = bgColor;
+  });
 };
 
 // Color dates in the email list
 const highlightEmailDates = () => {
-    // Locate the email list container
-    const emailListContainer = (document.querySelector('div[role="main"]') || document.body) as HTMLElement;
+  // Locate the email list container
+  const emailListContainer = (document.querySelector('div[role="main"]') ||
+    document.body) as HTMLElement;
 
-    if (!emailListContainer) return;
+  if (!emailListContainer) return;
 
-    // Function to highlight dates
-    // Create a MutationObserver to watch for changes in the email list
-    const todayDate = getTodayDate();
-    const yesterdayDate = getYesterdayDate();
+  // Function to highlight dates
+  // Create a MutationObserver to watch for changes in the email list
+  const todayDate = getTodayDate();
+  const yesterdayDate = getYesterdayDate();
 
-    const observer = new MutationObserver(() => {
-        highlightDates(emailListContainer, todayDate, TODAY_BUTTON_COLOR);
-        highlightDates(emailListContainer, yesterdayDate, YESTERDAY_BUTTON_COLOR);
-    });
+  const observer = new MutationObserver(() => {
+    highlightDates(emailListContainer, todayDate, TODAY_BUTTON_COLOR);
+    highlightDates(emailListContainer, yesterdayDate, YESTERDAY_BUTTON_COLOR);
+  });
 
-    // Observe the email list container for child changes
-    observer.observe(emailListContainer, { childList: true, subtree: true });
+  // Observe the email list container for child changes
+  observer.observe(emailListContainer, { childList: true, subtree: true });
 };
 
 //
@@ -95,7 +128,7 @@ highlightEmailDates();
 
 // Observe changes in the DOM to ensure Gmail UI is loaded
 const observer = new MutationObserver(() => {
-    addFilterButtons();
+  addFilterButtons();
 });
 // Start observing the body for Gmail UI changes
 observer.observe(document.body, { childList: true, subtree: true });
