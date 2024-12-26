@@ -54,19 +54,14 @@ const createFilterButton = (id: string, label: string, tooltip: string, buttonCo
 }
 
 
-const highlightDates = (emailListContainer: HTMLElement) => {
-    const emailRows = emailListContainer.querySelectorAll('table[id=":1dn"] span[title*="Dec 24"]'); // Locate email rows
+const highlightDates = (emailListContainer: HTMLElement, dateTitle: string, bgColor: string) => {
+    console.log(`Looking for date=${dateTitle} to color it with ${bgColor}`);
+    const emailRows = emailListContainer.querySelectorAll(`tr span[title*="${dateTitle}"] span`); // Locate email rows
 
     emailRows.forEach((row) => {
         const dateElement = row.parentElement as HTMLElement;
-        const dateText = row.textContent || '';
-
         // Highlight based on the date
-        if (dateText.includes("PM") || dateText.includes("AM")) {
-            dateElement.style.backgroundColor = TODAY_BUTTON_COLOR;
-        } else {
-            dateElement.style.backgroundColor = YESTERDAY_BUTTON_COLOR; 
-        }
+        dateElement.style.backgroundColor = bgColor;
     });
 };
 
@@ -80,17 +75,15 @@ const highlightEmailDates = () => {
     // Function to highlight dates
     // Create a MutationObserver to watch for changes in the email list
     const todayDate = getTodayDate();
-    const getYesterdayDate = getYesterdayDate();
+    const yesterdayDate = getYesterdayDate();
 
     const observer = new MutationObserver(() => {
-        highlightDates(emailListContainer);
+        highlightDates(emailListContainer, todayDate, TODAY_BUTTON_COLOR);
+        highlightDates(emailListContainer, yesterdayDate, YESTERDAY_BUTTON_COLOR);
     });
 
     // Observe the email list container for child changes
     observer.observe(emailListContainer, { childList: true, subtree: true });
-
-    // Initial highlight
-    highlightDates(emailListContainer);
 };
 
 //
