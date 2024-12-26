@@ -1,4 +1,7 @@
-# Chrome extension template repo written in Typescript and React.
+# Chrome extension for quick GMail filters.
+
+The extension enhances GMail with two buttons to quickly access Today and Yesterday emails.
+Today/Yesterday emails also contain highlighted date.
 
 Table of contents:
 
@@ -6,8 +9,6 @@ Table of contents:
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Prerequisites](#prerequisites)
-- [Option](#option)
-- [Includes the following](#includes-the-following)
 - [Project Structure](#project-structure)
 - [Setup](#setup)
 - [Open in Visual Studio Code](#open-in-visual-studio-code)
@@ -23,21 +24,6 @@ Table of contents:
 ## Prerequisites
 
 - [node + npm](https://nodejs.org/) (Current Version)
-
-## Option
-
-- [Visual Studio Code](https://code.visualstudio.com/)
-
-## Includes the following
-
-- TypeScript
-- Webpack
-- React
-- Jest
-- Code
-  - Chrome Storage
-  - Badge number
-  - Background script
 
 ## Project Structure
 
