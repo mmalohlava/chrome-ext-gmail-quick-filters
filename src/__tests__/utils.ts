@@ -21,9 +21,8 @@
  *   SOFTWARE.
  */
 
-function polling() {
-  // console.log("polling");
-  setTimeout(polling, 1000 * 30)
-}
+import { getTodayDate, getYesterdayDate } from "../utils"
 
-polling()
+test("1 + 1 = 2", () => {
+  expect(getYesterdayDate()).toBe("Tue, Dec 24, 2024")
+})

@@ -1,35 +1,29 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension TypeScript Starter",
+  "name": "GMail Quick Filters Extension",
   "description": "Chrome Extension, TypeScript, Visual Studio Code",
   "version": "1.0",
-  "options_ui": {
-    "page": "options.html"
-  },
   "action": {
     "default_icon": {
       "16": "icon.png"
     },
-    "default_popup": "popup.html"
+    "default_title": "Gmail Today Filter"
   },
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://mail.google.com/*"
       ],
       "js": [
-        "js/vendor.js",
         "js/content_script.js"
       ]
     }
   ],
-  "background": {
-    "service_worker": "js/background.js"
-  },
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://mail.google.com/*"
   ]
 }
