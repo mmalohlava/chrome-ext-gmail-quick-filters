@@ -18,12 +18,17 @@ describe("mergeConfig", () => {
     expect(mergeConfig({ today: "is:unread" })).toEqual({
       today: "is:unread",
       yesterday: DEFAULT_CONFIG.yesterday,
+      snooze: DEFAULT_CONFIG.snooze,
     });
   });
 
   test("stored values override defaults", () => {
-    const stored: FilterConfig = { today: "a", yesterday: "b" };
+    const stored: FilterConfig = { today: "a", yesterday: "b", snooze: "c" };
     expect(mergeConfig(stored)).toEqual(stored);
+  });
+
+  test("default snooze query is label:pinned", () => {
+    expect(DEFAULT_CONFIG.snooze).toBe("label:pinned");
   });
 });
 
@@ -58,7 +63,11 @@ describe("storage integration", () => {
   });
 
   test("saveConfig then loadConfig round-trips", async () => {
-    const config: FilterConfig = { today: "is:starred", yesterday: "is:unread" };
+    const config: FilterConfig = {
+      today: "is:starred",
+      yesterday: "is:unread",
+      snooze: "label:pinned",
+    };
     await saveConfig(config);
     expect(store[STORAGE_KEY]).toEqual(config);
     expect(await loadConfig()).toEqual(config);
@@ -74,6 +83,7 @@ describe("storage integration", () => {
     expect(cb).toHaveBeenCalledWith({
       today: "x",
       yesterday: DEFAULT_CONFIG.yesterday,
+      snooze: DEFAULT_CONFIG.snooze,
     });
   });
 

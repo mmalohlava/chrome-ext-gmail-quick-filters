@@ -6,6 +6,7 @@
 export interface FilterConfig {
   today: string;
   yesterday: string;
+  snooze: string;
 }
 
 // Exclude noisy automated senders (GitHub notifications and Google Calendar
@@ -17,6 +18,8 @@ const EXCLUDE_NOISE =
 export const DEFAULT_CONFIG: FilterConfig = {
   today: `newer_than:1d ${EXCLUDE_NOISE}`,
   yesterday: `newer_than:2d older_than:1d ${EXCLUDE_NOISE}`,
+  // Snoozed mail (including past-due snooze dates) is surfaced via label:pinned.
+  snooze: "label:pinned",
 };
 
 export const STORAGE_KEY = "filterConfig";

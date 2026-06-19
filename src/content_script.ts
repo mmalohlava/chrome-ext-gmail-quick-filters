@@ -18,6 +18,7 @@ import {
 // theme, so their backgrounds use the light highlight colors.
 const TODAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.today.bg;
 const YESTERDAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.yesterday.bg;
+const SNOOZE_BUTTON_COLOR = "#aecbfa"; // light blue, matching the fixed button look
 
 // Live filter-query configuration. Seeded with defaults and kept up to date from
 // chrome.storage so button clicks always use the latest queries without a reload.
@@ -75,6 +76,13 @@ const addFilterButtons = () => {
     YESTERDAY_BUTTON_COLOR,
     () => currentConfig.yesterday
   );
+  const snoozeFilterButton = createFilterButton(
+    "snoozeFilterButton",
+    "S",
+    "Snoozed Emails",
+    SNOOZE_BUTTON_COLOR,
+    () => currentConfig.snooze
+  );
 
   // Gear button opens the configuration dialog.
   const configButton = document.createElement("button");
@@ -90,6 +98,7 @@ const addFilterButtons = () => {
 
   buttonGroup.appendChild(todayFilterButton);
   buttonGroup.appendChild(yesterdayFilterButton);
+  buttonGroup.appendChild(snoozeFilterButton);
   buttonGroup.appendChild(configButton);
 
   // Insert buttons after the search bar
@@ -202,6 +211,7 @@ const openConfigDialog = () => {
     '"Y" — Yesterday\'s query',
     currentConfig.yesterday
   );
+  const snooze = makeField('"S" — Snoozed query', currentConfig.snooze);
 
   const buttonRow = document.createElement("div");
   Object.assign(buttonRow.style, {
@@ -232,6 +242,7 @@ const openConfigDialog = () => {
   resetButton.addEventListener("click", () => {
     today.input.value = DEFAULT_CONFIG.today;
     yesterday.input.value = DEFAULT_CONFIG.yesterday;
+    snooze.input.value = DEFAULT_CONFIG.snooze;
   });
 
   const cancelButton = document.createElement("button");
@@ -246,6 +257,7 @@ const openConfigDialog = () => {
     const next: FilterConfig = {
       today: today.input.value.trim() || DEFAULT_CONFIG.today,
       yesterday: yesterday.input.value.trim() || DEFAULT_CONFIG.yesterday,
+      snooze: snooze.input.value.trim() || DEFAULT_CONFIG.snooze,
     };
     currentConfig = next;
     void saveConfig(next);
@@ -259,6 +271,7 @@ const openConfigDialog = () => {
   card.appendChild(title);
   card.appendChild(today.wrapper);
   card.appendChild(yesterday.wrapper);
+  card.appendChild(snooze.wrapper);
   card.appendChild(buttonRow);
   overlay.appendChild(card);
 
