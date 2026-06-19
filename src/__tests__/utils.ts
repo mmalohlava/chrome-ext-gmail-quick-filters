@@ -21,8 +21,55 @@
  *   SOFTWARE.
  */
 
-import { getTodayDate, getYesterdayDate } from "../utils";
+import {
+  getTodayDate,
+  getYesterdayDate,
+  formatDate,
+  parseRgb,
+  relativeLuminance,
+  isDarkColor,
+} from "../utils";
 
-test("1 + 1 = 2", () => {
-  expect(getYesterdayDate()).toBe("Tue, Dec 24, 2024");
+test("getTodayDate matches formatted today", () => {
+  expect(getTodayDate()).toBe(formatDate(new Date()));
+});
+
+test("getYesterdayDate matches formatted yesterday", () => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  expect(getYesterdayDate()).toBe(formatDate(yesterday));
+});
+
+describe("parseRgb", () => {
+  test("parses rgb()", () => {
+    expect(parseRgb("rgb(255, 253, 231)")).toEqual({ r: 255, g: 253, b: 231 });
+  });
+
+  test("parses rgba() ignoring alpha", () => {
+    expect(parseRgb("rgba(31, 31, 31, 1)")).toEqual({ r: 31, g: 31, b: 31 });
+    expect(parseRgb("rgba(0, 0, 0, 0.5)")).toEqual({ r: 0, g: 0, b: 0 });
+  });
+
+  test("returns null for transparent/empty/unparseable", () => {
+    expect(parseRgb("transparent")).toBeNull();
+    expect(parseRgb("")).toBeNull();
+    expect(parseRgb("not a color")).toBeNull();
+  });
+});
+
+describe("relativeLuminance", () => {
+  test("white is near 1, black is near 0", () => {
+    expect(relativeLuminance({ r: 255, g: 255, b: 255 })).toBeCloseTo(1, 2);
+    expect(relativeLuminance({ r: 0, g: 0, b: 0 })).toBeCloseTo(0, 2);
+  });
+});
+
+describe("isDarkColor", () => {
+  test("Gmail dark background is dark", () => {
+    expect(isDarkColor({ r: 31, g: 31, b: 31 })).toBe(true);
+  });
+
+  test("white background is not dark", () => {
+    expect(isDarkColor({ r: 255, g: 255, b: 255 })).toBe(false);
+  });
 });
