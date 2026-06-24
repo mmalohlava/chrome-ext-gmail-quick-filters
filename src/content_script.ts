@@ -306,31 +306,31 @@ const highlightDates = (
   });
 };
 
-// Color dates in the email list
-const highlightEmailDates = () => {
-  // Locate the email list container
-  const emailListContainer = (document.querySelector('div[role="main"]') ||
-    document.body) as HTMLElement;
-
+// Color today's/yesterday's dates in the currently rendered email list.
+//
+// This re-queries div[role="main"] on every call instead of capturing it once:
+// clicking the T/Y filter buttons makes Gmail navigate to a search-results view
+// and re-mount its main content, so an observer bound to the original container
+// would be left watching a detached node and stop highlighting. Re-querying keeps
+// it working across searches and view changes.
+const applyHighlights = () => {
+  const emailListContainer = document.querySelector(
+    'div[role="main"]'
+  ) as HTMLElement | null;
   if (!emailListContainer) return;
 
-  // Function to highlight dates
-  // Create a MutationObserver to watch for changes in the email list
+  // Recompute the dates AND theme on every render. Gmail is a long-lived SPA that
+  // stays open for days; computing the dates once at startup would freeze
+  // "today"/"yesterday" to the day the tab was first opened (so after midnight it
+  // would keep highlighting a stale date). Recomputing keeps the highlight correct
+  // across date rollovers and theme switches without a reload.
   const todayDate = getTodayDate();
   const yesterdayDate = getYesterdayDate();
-
-  const observer = new MutationObserver(() => {
-    // Recompute the theme on every render so switching Gmail's theme updates the
-    // highlights without a reload.
-    const theme = detectDarkMode(emailListContainer)
-      ? HIGHLIGHT_COLORS.dark
-      : HIGHLIGHT_COLORS.light;
-    highlightDates(emailListContainer, todayDate, theme.today);
-    highlightDates(emailListContainer, yesterdayDate, theme.yesterday);
-  });
-
-  // Observe the email list container for child changes
-  observer.observe(emailListContainer, { childList: true, subtree: true });
+  const theme = detectDarkMode(emailListContainer)
+    ? HIGHLIGHT_COLORS.dark
+    : HIGHLIGHT_COLORS.light;
+  highlightDates(emailListContainer, todayDate, theme.today);
+  highlightDates(emailListContainer, yesterdayDate, theme.yesterday);
 };
 
 //
@@ -345,12 +345,16 @@ onConfigChanged((config) => {
   currentConfig = config;
 });
 
-// Call the function to start observing
-highlightEmailDates();
+// Run once for the initial render, then keep both features in sync on every
+// Gmail re-render. A single observer on document.body (which is never replaced)
+// drives both button injection and date highlighting, so highlighting keeps
+// working even when Gmail swaps out the main content for a search-results view.
+addFilterButtons();
+applyHighlights();
 
-// Observe changes in the DOM to ensure Gmail UI is loaded
 const observer = new MutationObserver(() => {
   addFilterButtons();
+  applyHighlights();
 });
 // Start observing the body for Gmail UI changes
 observer.observe(document.body, { childList: true, subtree: true });
