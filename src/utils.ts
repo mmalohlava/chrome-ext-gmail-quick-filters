@@ -1,5 +1,5 @@
 /**
- * Get today's date in the "Tue, Dec 24, 2024, 1:36 PM" format.
+ * Get today's date in the "Tue, Dec 24, 2024" format.
  */
 export const getTodayDate = (): string => {
   const today = new Date();
@@ -7,7 +7,7 @@ export const getTodayDate = (): string => {
 };
 
 /**
- * Get yesterday's date in the "Tue, Dec 24, 2024, 1:36 PM" format.
+ * Get yesterday's date in the "Tue, Dec 24, 2024" format.
  */
 export const getYesterdayDate = (): string => {
   const yesterday = new Date();
@@ -16,7 +16,11 @@ export const getYesterdayDate = (): string => {
 };
 
 /**
- * Format a Date object into "Tue, Dec 24, 2024, 1:36 PM".
+ * Format a Date object into "Tue, Dec 24, 2024".
+ *
+ * The day is intentionally NOT zero-padded ("Jul 8", not "Jul 08"): this string
+ * is matched as a substring against Gmail's date `title` attribute, which uses a
+ * non-padded day. Zero-padding here silently breaks highlighting on days 1–9.
  * @param date The Date object to format.
  * @returns Formatted date string.
  */
@@ -25,7 +29,7 @@ export const formatDate = (date: Date): string => {
     weekday: "short",
     year: "numeric",
     month: "short",
-    day: "2-digit",
+    day: "numeric",
   }).format(date);
 };
 

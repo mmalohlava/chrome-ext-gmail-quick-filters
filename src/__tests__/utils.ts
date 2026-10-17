@@ -40,6 +40,20 @@ test("getYesterdayDate matches formatted yesterday", () => {
   expect(getYesterdayDate()).toBe(formatDate(yesterday));
 });
 
+describe("formatDate", () => {
+  // Gmail's date `title` attribute uses a non-zero-padded day ("Jul 8", not
+  // "Jul 08"). The highlight selector matches that title as a substring, so
+  // formatDate must NOT zero-pad single-digit days or highlighting silently
+  // breaks for the first 9 days of every month.
+  test("does not zero-pad single-digit days", () => {
+    expect(formatDate(new Date(2026, 6, 8))).toBe("Wed, Jul 8, 2026");
+  });
+
+  test("formats double-digit days", () => {
+    expect(formatDate(new Date(2024, 11, 24))).toBe("Tue, Dec 24, 2024");
+  });
+});
+
 describe("parseRgb", () => {
   test("parses rgb()", () => {
     expect(parseRgb("rgb(255, 253, 231)")).toEqual({ r: 255, g: 253, b: 231 });
