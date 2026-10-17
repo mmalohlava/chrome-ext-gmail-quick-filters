@@ -28,6 +28,8 @@ import {
   parseRgb,
   relativeLuminance,
   isDarkColor,
+  isH2oSender,
+  senderDomain,
 } from "../utils";
 
 test("getTodayDate matches formatted today", () => {
@@ -86,4 +88,38 @@ describe("isDarkColor", () => {
   test("white background is not dark", () => {
     expect(isDarkColor({ r: 255, g: 255, b: 255 })).toBe(false);
   });
+});
+
+describe("isH2oSender", () => {
+  test.each([
+    "jeff@h2o.ai",
+    "Jeff.Doe@H2O.AI",
+    "  ops@h2o.ai  ",
+    "bot@mail.h2o.ai",
+  ])("matches %s", (email) => expect(isH2oSender(email)).toBe(true));
+
+  test.each([
+    "WOCS-NA@microsoft.com",
+    "someone@h2o.ai.evil.com",
+    "someone@noth2o.ai",
+    "h2o.ai",
+    "",
+    null,
+    undefined,
+  ])("rejects %s", (email) => expect(isH2oSender(email)).toBe(false));
+});
+
+describe("senderDomain", () => {
+  test.each([
+    ["WOCS-NA@microsoft.com", "microsoft.com"],
+    ["  bot@Mail.Google.COM ", "mail.google.com"],
+    ["odd\"@\"name@example.org", "example.org"],
+  ])("extracts the domain of %s", (email, domain) =>
+    expect(senderDomain(email)).toBe(domain)
+  );
+
+  test.each(["no-at-sign", "trailing@", "", null, undefined])(
+    "returns null for %s",
+    (email) => expect(senderDomain(email)).toBeNull()
+  );
 });

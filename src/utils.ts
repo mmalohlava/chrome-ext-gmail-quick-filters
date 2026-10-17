@@ -101,4 +101,30 @@ export const relativeLuminance = ({ r, g, b }: Rgb): number => {
 /**
  * Whether a color is dark enough that light text reads well on top of it.
  */
-export const isDarkColor = (color: Rgb): boolean => relativeLuminance(color) < 0.5;
+export const isDarkColor = (color: Rgb): boolean =>
+  relativeLuminance(color) < 0.5;
+
+/**
+ * Background color used to flag the sender header of emails sent from H2O.ai.
+ */
+export const H2O_SENDER_HIGHLIGHT_COLOR = "#FFDD00";
+
+/**
+ * Extract the lowercased domain (the part after the last "@") of an email address.
+ * @returns The domain, or null when the address has no domain part.
+ */
+export const senderDomain = (
+  email: string | null | undefined
+): string | null => {
+  const address = (email ?? "").trim();
+  const domain = address.slice(address.lastIndexOf("@") + 1).toLowerCase();
+  return address.includes("@") && domain ? domain : null;
+};
+
+/**
+ * Whether an email address belongs to H2O.ai (h2o.ai or any of its subdomains).
+ */
+export const isH2oSender = (email: string | null | undefined): boolean => {
+  const domain = senderDomain(email);
+  return domain === "h2o.ai" || !!domain?.endsWith(".h2o.ai");
+};

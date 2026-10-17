@@ -1,11 +1,15 @@
 import { getYesterdayDate } from "./utils";
 import { getTodayDate } from "./utils";
 import {
+  H2O_SENDER_HIGHLIGHT_COLOR,
   HIGHLIGHT_COLORS,
   HighlightColors,
   isDarkColor,
+  isH2oSender,
   parseRgb,
+  senderDomain,
 } from "./utils";
+import { formatSender, pickCurrentMessage } from "./pinned_header";
 import {
   DEFAULT_CONFIG,
   FilterConfig,
@@ -18,6 +22,12 @@ import {
 // theme, so their backgrounds use the light highlight colors.
 const TODAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.today.bg;
 const YESTERDAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.yesterday.bg;
+// Strong red chip so a non-H2O.ai sender's domain grabs attention.
+const DOMAIN_BADGE_COLORS = {
+  bg: "#d93025",
+  text: "#ffffff",
+  border: "#a50e0e",
+};
 const SNOOZE_BUTTON_COLOR = "#aecbfa"; // light blue, matching the fixed button look
 
 // Live filter-query configuration. Seeded with defaults and kept up to date from
@@ -333,6 +343,181 @@ const applyHighlights = () => {
   highlightDates(emailListContainer, yesterdayDate, theme.yesterday);
 };
 
+// In an opened email Gmail renders each message's sender as `span.gD[email]`
+// inside the message header block `.gE` (sender name, recipients, date and
+// action icons).
+const SENDER_SELECTOR = "span.gD[email]";
+const senderHeader = (sender: HTMLElement): HTMLElement =>
+  sender.closest<HTMLElement>(".gE") ?? sender;
+
+const DOMAIN_BADGE_ATTR = "data-quick-filters-domain";
+
+// Show a colored badge with the sender's domain centered in the header block.
+const addDomainBadge = (header: HTMLElement, domain: string) => {
+  const existing = header.querySelector(`[${DOMAIN_BADGE_ATTR}]`);
+  // Only touch the DOM when needed: inserting fires the body MutationObserver,
+  // which would otherwise call back here forever.
+  if (existing?.getAttribute(DOMAIN_BADGE_ATTR) === domain) return;
+  existing?.remove();
+
+  const badge = document.createElement("span");
+  badge.setAttribute(DOMAIN_BADGE_ATTR, domain);
+  badge.textContent = domain;
+  Object.assign(badge.style, {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    padding: "2px 10px",
+    borderRadius: "10px",
+    backgroundColor: DOMAIN_BADGE_COLORS.bg,
+    color: DOMAIN_BADGE_COLORS.text,
+    border: `1px solid ${DOMAIN_BADGE_COLORS.border}`,
+    fontSize: "13px",
+    fontWeight: "500",
+    whiteSpace: "nowrap",
+    pointerEvents: "none", // never block clicks on the header underneath
+  } as CSSStyleDeclaration);
+  header.style.position = "relative"; // anchor for the centered badge
+  header.appendChild(badge);
+};
+
+// Flag the sender of each opened message: the whole header turns yellow for
+// H2O.ai senders, any other sender gets a badge with their domain.
+const highlightSenders = () => {
+  document.querySelectorAll<HTMLElement>(SENDER_SELECTOR).forEach((sender) => {
+    const email = sender.getAttribute("email");
+    if (!isH2oSender(email)) {
+      const domain = senderDomain(email);
+      if (domain) addDomainBadge(senderHeader(sender), domain);
+      return;
+    }
+    const header = senderHeader(sender);
+    header.style.backgroundColor = H2O_SENDER_HIGHLIGHT_COLOR;
+    header.style.borderRadius = "8px";
+    // Pad the text away from the colored edge; the matching negative horizontal
+    // margin keeps the sender name aligned with the email body below.
+    header.style.padding = "6px 12px";
+    header.style.margin = "0 -12px";
+  });
+};
+
+const PINNED_HEADER_ID = "quickFiltersPinnedHeader";
+
+// Nearest ancestor that actually scrolls — Gmail's reading pane.
+const findScroller = (el: HTMLElement): HTMLElement | null => {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      node.scrollHeight > node.clientHeight
+    )
+      return node;
+  }
+  return null;
+};
+
+// The pinned bar is our own element (not a moved Gmail node) so it works however
+// Gmail nests the subject and sender, which live in unrelated subtrees.
+const getPinnedBar = () => {
+  let bar = document.getElementById(PINNED_HEADER_ID);
+  if (bar) return bar;
+  bar = document.createElement("div");
+  bar.id = PINNED_HEADER_ID;
+  Object.assign(bar.style, {
+    position: "fixed",
+    display: "none",
+    zIndex: "1000",
+    boxSizing: "border-box",
+    padding: "8px 16px",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
+    font: '14px/1.4 "Google Sans", Roboto, Arial, sans-serif',
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } as CSSStyleDeclaration);
+  const subject = document.createElement("div");
+  subject.style.fontSize = "16px";
+  subject.style.fontWeight = "500";
+  subject.style.overflow = "hidden";
+  subject.style.textOverflow = "ellipsis";
+  const sender = document.createElement("div");
+  sender.style.overflow = "hidden";
+  sender.style.textOverflow = "ellipsis";
+  bar.append(subject, sender);
+  document.body.appendChild(bar);
+  return bar;
+};
+
+// Only touch text when it changes: rewriting it fires the body MutationObserver,
+// which would otherwise schedule another update forever.
+const setText = (el: Element, text: string) => {
+  if (el.textContent !== text) el.textContent = text;
+};
+
+// Show the subject and current message's sender in a bar pinned to the top of
+// the reading pane once the real header has scrolled out of view.
+const updatePinnedHeader = () => {
+  const bar = getPinnedBar();
+  const hide = () => {
+    bar.style.display = "none";
+  };
+
+  const subject = document.querySelector<HTMLElement>("h2.hP");
+  const scroller = subject && findScroller(subject);
+  if (!subject || !scroller) return hide();
+
+  // Skip senders Gmail keeps in the DOM but doesn't render (zero-size rects).
+  const senders = Array.from(
+    document.querySelectorAll<HTMLElement>(SENDER_SELECTOR)
+  ).filter((s) => s.getClientRects().length > 0);
+  const pane = scroller.getBoundingClientRect();
+  const index = pickCurrentMessage(
+    senders.map((s) => senderHeader(s).getBoundingClientRect().top),
+    pane.top
+  );
+  if (index === null) return hide();
+
+  const sender = senders[index];
+  const email = sender.getAttribute("email");
+  const date = senderHeader(sender).querySelector(".g3")?.textContent?.trim();
+  const [subjectLine, senderLine] = Array.from(bar.children);
+  setText(subjectLine, subject.textContent?.trim() ?? "");
+  setText(
+    senderLine,
+    [
+      formatSender(sender.getAttribute("name") ?? sender.textContent, email),
+      date,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  );
+
+  const dark = detectDarkMode(scroller);
+  const h2o = isH2oSender(email);
+  bar.style.backgroundColor = h2o
+    ? H2O_SENDER_HIGHLIGHT_COLOR
+    : dark
+    ? "#2d2e30"
+    : "#ffffff";
+  bar.style.color = h2o || !dark ? "#202124" : "#e8eaed";
+  bar.style.top = `${pane.top}px`;
+  bar.style.left = `${pane.left}px`;
+  bar.style.width = `${scroller.clientWidth}px`; // leave the scrollbar uncovered
+  bar.style.display = "block";
+};
+
+// Coalesce bursts of scroll/mutation events into one update per frame.
+let pinnedUpdateScheduled = false;
+const schedulePinnedHeaderUpdate = () => {
+  if (pinnedUpdateScheduled) return;
+  pinnedUpdateScheduled = true;
+  requestAnimationFrame(() => {
+    pinnedUpdateScheduled = false;
+    updatePinnedHeader();
+  });
+};
+
 //
 // Register event observers
 //
@@ -351,10 +536,21 @@ onConfigChanged((config) => {
 // working even when Gmail swaps out the main content for a search-results view.
 addFilterButtons();
 applyHighlights();
+highlightSenders();
+schedulePinnedHeaderUpdate();
 
 const observer = new MutationObserver(() => {
   addFilterButtons();
   applyHighlights();
+  highlightSenders();
+  schedulePinnedHeaderUpdate();
 });
 // Start observing the body for Gmail UI changes
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Scroll events don't bubble, so capture them from Gmail's inner scroll panes.
+document.addEventListener("scroll", schedulePinnedHeaderUpdate, {
+  capture: true,
+  passive: true,
+});
+window.addEventListener("resize", schedulePinnedHeaderUpdate);
