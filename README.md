@@ -1,70 +1,43 @@
-# Chrome extension for quick GMail filters.
+# Gmail Quick Filters
 
-The extension enhances GMail with two buttons to quickly access Today and Yesterday emails.
-Today/Yesterday emails also contain highlighted date.
+A Chrome extension (Manifest V3) that adds quick search filters and visual cues to Gmail.
 
-Table of contents:
+## Features
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+- **Filter buttons** next to the Gmail search bar:
+  - **T**: today's email (`newer_than:1d`, excluding GitHub, calendar notifications and
+    `LISTS/privacy-atlas`)
+  - **Y**: yesterday's email (`newer_than:2d older_than:1d`, same exclusions)
+  - **S**: snoozed/pinned email (`label:pinned`)
+  - **⚙**: edits the queries. They are saved in `chrome.storage.sync`, so they follow you
+    across devices; leaving a query blank restores its default.
+- **Date highlighting**: today's and yesterday's dates in the email list are shown as
+  colored chips, adapted to Gmail's light or dark theme.
+- **Sender cues**: in an opened email, H2O.ai senders get a yellow header; every other
+  sender gets a red badge with their domain.
+- **Pinned header**: when you scroll through a thread, a bar at the top of the reading
+  pane shows the subject and the current message's sender and date.
 
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Setup](#setup)
-- [Open in Visual Studio Code](#open-in-visual-studio-code)
-- [Build](#build)
-- [Build in watch mode](#build-in-watch-mode)
-  - [terminal](#terminal)
-  - [Visual Studio Code](#visual-studio-code)
-- [Load extension to chrome](#load-extension-to-chrome)
-- [Test](#test)
+## Development
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+Requires [Node.js](https://nodejs.org/) 20 or later.
 
-## Prerequisites
+| Task | Command |
+| --- | --- |
+| Install dependencies | `npm install` |
+| Production build into `dist/` | `npm run build` |
+| Watch mode (VS Code: `Ctrl+Shift+B`) | `npm run watch` |
+| Run tests | `npm test` |
+| Format source | `npm run style` |
 
-- [node + npm](https://nodejs.org/) (Current Version)
+| Folder | Content |
+| --- | --- |
+| `src/` | TypeScript sources and tests (`src/__tests__/`) |
+| `public/` | `manifest.json` and icon, copied into `dist/` |
+| `dist/` | Built, loadable extension |
+| `design/adr/` | Architecture decision records |
 
-## Project Structure
+## Load into Chrome
 
-| Folder       | Description                |
-| ------------ | -------------------------- |
-| `src/`       | TypeScript source files    |
-| `public/`    | static files               |
-| `dist`       | Chrome Extension directory |
-| `dist/js`    | Generated JavaScript files |
-
-
-## Setup
-
-```
-npm install
-```
-
-## Build
-
-```
-npm run build
-```
-
-## Build in watch mode
-
-### terminal
-
-```
-npm run watch
-```
-
-### Visual Studio Code
-
-Run watch mode.
-
-type `Ctrl + Shift + B`
-
-## Load extension to chrome
-
-Load `dist` directory.
-
-## Test
-
-Run `npx jest` or `npm run test`.
+Open `chrome://extensions`, enable Developer mode, click **Load unpacked** and select
+`dist/`. After rebuilding, reload the extension.

@@ -1,7 +1,9 @@
 import {
   DEFAULT_CONFIG,
   STORAGE_KEY,
+  FILTERS,
   mergeConfig,
+  resolveConfig,
   loadConfig,
   saveConfig,
   onConfigChanged,
@@ -29,6 +31,29 @@ describe("mergeConfig", () => {
 
   test("default snooze query is label:pinned", () => {
     expect(DEFAULT_CONFIG.snooze).toBe("label:pinned");
+  });
+});
+
+describe("FILTERS", () => {
+  test("defines one filter per config key, in button order", () => {
+    expect(FILTERS.map((f) => f.key)).toEqual(Object.keys(DEFAULT_CONFIG));
+    expect(FILTERS.map((f) => f.label)).toEqual(["T", "Y", "S"]);
+  });
+});
+
+describe("resolveConfig", () => {
+  test("trims entered queries", () => {
+    expect(
+      resolveConfig({ today: " a ", yesterday: "b\t", snooze: "\nc" })
+    ).toEqual({ today: "a", yesterday: "b", snooze: "c" });
+  });
+
+  test("falls back to defaults for blank queries", () => {
+    expect(resolveConfig({ today: "", yesterday: "  ", snooze: "c" })).toEqual({
+      today: DEFAULT_CONFIG.today,
+      yesterday: DEFAULT_CONFIG.yesterday,
+      snooze: "c",
+    });
   });
 });
 

@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "GMail Quick Filters Extension",
-  "description": "Chrome Extension, TypeScript, Visual Studio Code",
+  "name": "Gmail Quick Filters",
+  "description": "Quick Today/Yesterday/Snoozed search filters, date highlighting and sender cues for Gmail.",
   "version": "1.0",
   "action": {
     "default_icon": {
       "16": "icon.png"
     },
-    "default_title": "Gmail Today Filter"
+    "default_title": "Gmail Quick Filters"
   },
   "content_scripts": [
     {
@@ -20,8 +20,7 @@
     }
   ],
   "permissions": [
-    "storage",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
     "https://mail.google.com/*"

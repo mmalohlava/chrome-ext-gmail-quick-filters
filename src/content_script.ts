@@ -1,6 +1,6 @@
-import { getYesterdayDate } from "./utils";
-import { getTodayDate } from "./utils";
 import {
+  getTodayDate,
+  getYesterdayDate,
   H2O_SENDER_HIGHLIGHT_COLOR,
   HIGHLIGHT_COLORS,
   HighlightColors,
@@ -12,27 +12,36 @@ import {
 import { formatSender, pickCurrentMessage } from "./pinned_header";
 import {
   DEFAULT_CONFIG,
+  FILTERS,
   FilterConfig,
+  FilterKey,
   loadConfig,
   onConfigChanged,
+  resolveConfig,
   saveConfig,
 } from "./config";
 
-// The "T"/"Y" filter buttons keep a fixed, light-theme look regardless of Gmail's
-// theme, so their backgrounds use the light highlight colors.
-const TODAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.today.bg;
-const YESTERDAY_BUTTON_COLOR = HIGHLIGHT_COLORS.light.yesterday.bg;
+// The filter buttons keep a fixed, light-theme look regardless of Gmail's theme,
+// so the T/Y backgrounds use the light highlight colors.
+const FILTER_BUTTON_COLORS: Record<FilterKey, string> = {
+  today: HIGHLIGHT_COLORS.light.today.bg,
+  yesterday: HIGHLIGHT_COLORS.light.yesterday.bg,
+  snooze: "#aecbfa", // light blue
+};
 // Strong red chip so a non-H2O.ai sender's domain grabs attention.
 const DOMAIN_BADGE_COLORS = {
   bg: "#d93025",
   text: "#ffffff",
   border: "#a50e0e",
 };
-const SNOOZE_BUTTON_COLOR = "#aecbfa"; // light blue, matching the fixed button look
 
 // Live filter-query configuration. Seeded with defaults and kept up to date from
 // chrome.storage so button clicks always use the latest queries without a reload.
 let currentConfig: FilterConfig = { ...DEFAULT_CONFIG };
+
+const setStyle = (el: HTMLElement, styles: Partial<CSSStyleDeclaration>) => {
+  Object.assign(el.style, styles);
+};
 
 /**
  * Detect whether Gmail is rendering in a dark theme by inspecting the actual
@@ -50,66 +59,69 @@ const detectDarkMode = (container: HTMLElement): boolean => {
   return bodyRgb ? isDarkColor(bodyRgb) : false;
 };
 
-const addFilterButtons = () => {
-  const targetNode = document.querySelector('form[role="search"]')
-    ?.parentNode as HTMLDivElement;
+const BUTTON_GROUP_ID = "quickFiltersButtons";
 
+// A small button styled like Gmail's own (`zo` is Gmail's button class).
+const createToolbarButton = (
+  id: string,
+  text: string,
+  tooltip: string,
+  onClick: () => void,
+  backgroundColor = ""
+) => {
+  const button = document.createElement("button");
+  button.id = id;
+  button.className = "zo";
+  button.textContent = text;
+  button.dataset.tooltip = tooltip;
+  setStyle(button, {
+    backgroundColor,
+    border: "1px solid #dadce0",
+    borderRadius: "6px",
+    padding: "4px 8px",
+    cursor: "pointer",
+  });
+  button.addEventListener("click", onClick);
+  return button;
+};
+
+const addFilterButtons = () => {
+  if (document.getElementById(BUTTON_GROUP_ID)) return; // already inserted
+
+  const targetNode = document.querySelector('form[role="search"]')
+    ?.parentNode as HTMLElement | null;
   if (!targetNode) return;
 
-  // Create container div for buttons
   const buttonGroup = document.createElement("div");
-  buttonGroup.style.display = "inline-flex";
-  buttonGroup.style.gap = "4px";
-  buttonGroup.style.marginLeft = "8px";
-  buttonGroup.style.verticalAlign = "middle";
+  buttonGroup.id = BUTTON_GROUP_ID;
+  setStyle(buttonGroup, {
+    display: "inline-flex",
+    gap: "4px",
+    marginLeft: "8px",
+    verticalAlign: "middle",
+  });
 
-  // Check if buttons already exist
-  if (
-    document.querySelector("#todayFilterButton") ||
-    document.querySelector("#yesterdayFilterButton")
-  )
-    return;
-
-  // Create today and yesterday filter buttons. The queries are read lazily on
-  // each click so edits made in the config dialog take effect immediately.
-  const todayFilterButton = createFilterButton(
-    "todayFilterButton",
-    "T",
-    "Today's Emails",
-    TODAY_BUTTON_COLOR,
-    () => currentConfig.today
+  // The queries are read lazily on each click so edits made in the config
+  // dialog take effect immediately.
+  FILTERS.forEach(({ key, label, name }) =>
+    buttonGroup.appendChild(
+      createToolbarButton(
+        `${key}FilterButton`,
+        label,
+        `${name} Emails`,
+        () => runSearch(currentConfig[key]),
+        FILTER_BUTTON_COLORS[key]
+      )
+    )
   );
-  const yesterdayFilterButton = createFilterButton(
-    "yesterdayFilterButton",
-    "Y",
-    "Yesterday's Emails",
-    YESTERDAY_BUTTON_COLOR,
-    () => currentConfig.yesterday
+  buttonGroup.appendChild(
+    createToolbarButton(
+      "configFilterButton",
+      "⚙",
+      "Edit filter queries",
+      openConfigDialog
+    )
   );
-  const snoozeFilterButton = createFilterButton(
-    "snoozeFilterButton",
-    "S",
-    "Snoozed Emails",
-    SNOOZE_BUTTON_COLOR,
-    () => currentConfig.snooze
-  );
-
-  // Gear button opens the configuration dialog.
-  const configButton = document.createElement("button");
-  configButton.id = "configFilterButton";
-  configButton.className = "zo";
-  configButton.textContent = "⚙";
-  configButton.dataset.tooltip = "Edit filter queries";
-  configButton.style.border = "1px solid #dadce0";
-  configButton.style.borderRadius = "6px";
-  configButton.style.padding = "4px 8px";
-  configButton.style.cursor = "pointer";
-  configButton.addEventListener("click", openConfigDialog);
-
-  buttonGroup.appendChild(todayFilterButton);
-  buttonGroup.appendChild(yesterdayFilterButton);
-  buttonGroup.appendChild(snoozeFilterButton);
-  buttonGroup.appendChild(configButton);
 
   // Insert buttons after the search bar
   targetNode.insertAdjacentElement("afterend", buttonGroup);
@@ -129,37 +141,61 @@ const runSearch = (query: string) => {
   }
 };
 
-const createFilterButton = (
-  id: string,
-  label: string,
-  tooltip: string,
-  buttonColor: string,
-  getQuery: () => string
+const CONFIG_DIALOG_ID = "quickFiltersConfigDialog";
+
+const makeDialogField = (labelText: string) => {
+  const wrapper = document.createElement("label");
+  setStyle(wrapper, {
+    display: "block",
+    marginBottom: "14px",
+    fontWeight: "500",
+  });
+  wrapper.textContent = labelText;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  setStyle(input, {
+    display: "block",
+    width: "100%",
+    boxSizing: "border-box",
+    marginTop: "6px",
+    padding: "8px 10px",
+    border: "1px solid #dadce0",
+    borderRadius: "6px",
+    fontWeight: "400",
+    fontFamily: "monospace",
+  });
+  wrapper.appendChild(input);
+  return { wrapper, input };
+};
+
+const makeDialogButton = (
+  text: string,
+  primary: boolean,
+  onClick: () => void
 ) => {
   const button = document.createElement("button");
-  button.id = id;
-  button.className = "zo";
-  button.textContent = label;
-  button.dataset.tooltip = tooltip;
-  button.style.backgroundColor = buttonColor; // Default Gmail button color
-  button.style.border = "1px solid #dadce0";
-  button.style.borderRadius = "6px";
-  button.style.padding = "4px 8px";
-  button.style.cursor = "pointer";
-
-  button.addEventListener("click", () => runSearch(getQuery()));
+  button.textContent = text;
+  setStyle(button, {
+    padding: "8px 16px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    border: primary ? "none" : "1px solid #dadce0",
+    backgroundColor: primary ? "#1a73e8" : "#ffffff",
+    color: primary ? "#ffffff" : "#202124",
+    fontWeight: "500",
+  });
+  button.addEventListener("click", onClick);
   return button;
 };
 
-const CONFIG_DIALOG_ID = "quickFiltersConfigDialog";
-
-// Build and show the modal dialog for editing the T/Y filter queries.
+// Build and show the modal dialog for editing the filter queries.
 const openConfigDialog = () => {
   if (document.getElementById(CONFIG_DIALOG_ID)) return; // already open
 
   const overlay = document.createElement("div");
   overlay.id = CONFIG_DIALOG_ID;
-  Object.assign(overlay.style, {
+  setStyle(overlay, {
     position: "fixed",
     inset: "0",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -167,10 +203,10 @@ const openConfigDialog = () => {
     alignItems: "center",
     justifyContent: "center",
     zIndex: "2147483647",
-  } as CSSStyleDeclaration);
+  });
 
   const card = document.createElement("div");
-  Object.assign(card.style, {
+  setStyle(card, {
     backgroundColor: "#ffffff",
     color: "#202124",
     borderRadius: "12px",
@@ -179,110 +215,49 @@ const openConfigDialog = () => {
     maxWidth: "90vw",
     boxShadow: "0 8px 24px rgba(0, 0, 0, 0.28)",
     font: '14px/1.4 "Google Sans", Roboto, Arial, sans-serif',
-  } as CSSStyleDeclaration);
+  });
 
   const title = document.createElement("h2");
   title.textContent = "Edit Filter Queries";
-  Object.assign(title.style, {
-    margin: "0 0 16px",
-    fontSize: "18px",
-    fontWeight: "500",
-  } as CSSStyleDeclaration);
+  setStyle(title, { margin: "0 0 16px", fontSize: "18px", fontWeight: "500" });
 
-  const makeField = (labelText: string, value: string) => {
-    const wrapper = document.createElement("label");
-    Object.assign(wrapper.style, {
-      display: "block",
-      marginBottom: "14px",
-      fontWeight: "500",
-    } as CSSStyleDeclaration);
-    wrapper.textContent = labelText;
+  const fields = FILTERS.map(({ key, label, name }) => ({
+    key,
+    ...makeDialogField(`"${label}" — ${name} query`),
+  }));
+  const fillFields = (config: FilterConfig) =>
+    fields.forEach(({ key, input }) => (input.value = config[key]));
+  fillFields(currentConfig);
 
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = value;
-    Object.assign(input.style, {
-      display: "block",
-      width: "100%",
-      boxSizing: "border-box",
-      marginTop: "6px",
-      padding: "8px 10px",
-      border: "1px solid #dadce0",
-      borderRadius: "6px",
-      fontWeight: "400",
-      fontFamily: "monospace",
-    } as CSSStyleDeclaration);
-    wrapper.appendChild(input);
-    return { wrapper, input };
-  };
+  const close = () => overlay.remove();
 
-  const today = makeField('"T" — Today\'s query', currentConfig.today);
-  const yesterday = makeField(
-    '"Y" — Yesterday\'s query',
-    currentConfig.yesterday
+  const resetButton = makeDialogButton("Reset to defaults", false, () =>
+    fillFields(DEFAULT_CONFIG)
   );
-  const snooze = makeField('"S" — Snoozed query', currentConfig.snooze);
+  resetButton.style.marginRight = "auto"; // push to the left
+
+  const saveButton = makeDialogButton("Save", true, () => {
+    const entered = { ...DEFAULT_CONFIG };
+    fields.forEach(({ key, input }) => (entered[key] = input.value));
+    currentConfig = resolveConfig(entered);
+    void saveConfig(currentConfig);
+    close();
+  });
 
   const buttonRow = document.createElement("div");
-  Object.assign(buttonRow.style, {
+  setStyle(buttonRow, {
     display: "flex",
     gap: "8px",
     justifyContent: "flex-end",
     marginTop: "8px",
-  } as CSSStyleDeclaration);
-
-  const close = () => overlay.remove();
-
-  const styleButton = (btn: HTMLButtonElement, primary: boolean) => {
-    Object.assign(btn.style, {
-      padding: "8px 16px",
-      borderRadius: "6px",
-      cursor: "pointer",
-      border: primary ? "none" : "1px solid #dadce0",
-      backgroundColor: primary ? "#1a73e8" : "#ffffff",
-      color: primary ? "#ffffff" : "#202124",
-      fontWeight: "500",
-    } as CSSStyleDeclaration);
-  };
-
-  const resetButton = document.createElement("button");
-  resetButton.textContent = "Reset to defaults";
-  styleButton(resetButton, false);
-  resetButton.style.marginRight = "auto"; // push to the left
-  resetButton.addEventListener("click", () => {
-    today.input.value = DEFAULT_CONFIG.today;
-    yesterday.input.value = DEFAULT_CONFIG.yesterday;
-    snooze.input.value = DEFAULT_CONFIG.snooze;
   });
+  buttonRow.append(
+    resetButton,
+    makeDialogButton("Cancel", false, close),
+    saveButton
+  );
 
-  const cancelButton = document.createElement("button");
-  cancelButton.textContent = "Cancel";
-  styleButton(cancelButton, false);
-  cancelButton.addEventListener("click", close);
-
-  const saveButton = document.createElement("button");
-  saveButton.textContent = "Save";
-  styleButton(saveButton, true);
-  saveButton.addEventListener("click", () => {
-    const next: FilterConfig = {
-      today: today.input.value.trim() || DEFAULT_CONFIG.today,
-      yesterday: yesterday.input.value.trim() || DEFAULT_CONFIG.yesterday,
-      snooze: snooze.input.value.trim() || DEFAULT_CONFIG.snooze,
-    };
-    currentConfig = next;
-    void saveConfig(next);
-    close();
-  });
-
-  buttonRow.appendChild(resetButton);
-  buttonRow.appendChild(cancelButton);
-  buttonRow.appendChild(saveButton);
-
-  card.appendChild(title);
-  card.appendChild(today.wrapper);
-  card.appendChild(yesterday.wrapper);
-  card.appendChild(snooze.wrapper);
-  card.appendChild(buttonRow);
+  card.append(title, ...fields.map((f) => f.wrapper), buttonRow);
   overlay.appendChild(card);
 
   // Dismiss when clicking the backdrop (but not the card itself).
@@ -291,7 +266,7 @@ const openConfigDialog = () => {
   });
 
   document.body.appendChild(overlay);
-  today.input.focus();
+  fields[0].input.focus();
 };
 
 const highlightDates = (
@@ -363,7 +338,7 @@ const addDomainBadge = (header: HTMLElement, domain: string) => {
   const badge = document.createElement("span");
   badge.setAttribute(DOMAIN_BADGE_ATTR, domain);
   badge.textContent = domain;
-  Object.assign(badge.style, {
+  setStyle(badge, {
     position: "absolute",
     left: "50%",
     top: "50%",
@@ -377,7 +352,7 @@ const addDomainBadge = (header: HTMLElement, domain: string) => {
     fontWeight: "500",
     whiteSpace: "nowrap",
     pointerEvents: "none", // never block clicks on the header underneath
-  } as CSSStyleDeclaration);
+  });
   header.style.position = "relative"; // anchor for the centered badge
   header.appendChild(badge);
 };
@@ -387,12 +362,12 @@ const addDomainBadge = (header: HTMLElement, domain: string) => {
 const highlightSenders = () => {
   document.querySelectorAll<HTMLElement>(SENDER_SELECTOR).forEach((sender) => {
     const email = sender.getAttribute("email");
+    const header = senderHeader(sender);
     if (!isH2oSender(email)) {
       const domain = senderDomain(email);
-      if (domain) addDomainBadge(senderHeader(sender), domain);
+      if (domain) addDomainBadge(header, domain);
       return;
     }
-    const header = senderHeader(sender);
     header.style.backgroundColor = H2O_SENDER_HIGHLIGHT_COLOR;
     header.style.borderRadius = "8px";
     // Pad the text away from the colored edge; the matching negative horizontal
@@ -424,7 +399,7 @@ const getPinnedBar = () => {
   if (bar) return bar;
   bar = document.createElement("div");
   bar.id = PINNED_HEADER_ID;
-  Object.assign(bar.style, {
+  setStyle(bar, {
     position: "fixed",
     display: "none",
     zIndex: "1000",
@@ -435,7 +410,7 @@ const getPinnedBar = () => {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-  } as CSSStyleDeclaration);
+  });
   const subject = document.createElement("div");
   subject.style.fontSize = "16px";
   subject.style.fontWeight = "500";

@@ -1,6 +1,4 @@
 {
-    "copyrighter.author": "R3BL LLC",
-    "copyrighter.license": "MIT",
     "typescript.tsdk": "./node_modules/typescript/lib",
     "files.eol": "\n",
     "json.schemas": [
