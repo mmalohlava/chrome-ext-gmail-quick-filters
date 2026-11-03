@@ -59,7 +59,11 @@ unpacked" the `dist/` directory. After a build, reload the extension to pick up 
     hovered element to the outermost wrapper with no other visible content, so no
     empty band is left behind), and `startHidePicker` (capture-phase listeners,
     outline, ↑/↓/Enter/Esc keys, Done banner).
-  - `src/popup.ts` + `public/popup.html`: the toolbar popup. Toggle and reset write
+  - `src/hidden_profiles.ts`: named saved sets of selectors (storage key
+    `hiddenProfiles`), with `upsertProfile` (same name replaces), `removeProfile`,
+    `applyProfile` and `isActiveProfile`.
+  - `src/popup.ts` + `public/popup.html`: the toolbar popup, including the "Saved
+    configurations" list. Popup tests load the real `popup.html` body. Toggle and reset write
     storage directly; the content script follows `storage.onChanged`. Only starting
     the picker sends a message to the active Gmail tab.
 - **`src/storage.ts`**: `createSyncStore(key, defaults)` gives `merge`, `load`, `save`

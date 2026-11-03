@@ -1,7 +1,10 @@
 /**
  * @jest-environment jsdom
  */
+import { readFileSync } from "fs";
+import { join } from "path";
 import { HIDDEN_ITEMS_KEY, START_HIDE_PICKER } from "../hidden_items";
+import { HIDDEN_PROFILES_KEY } from "../hidden_profiles";
 import { flushPromises, installChromeStub } from "../test_support/chrome_stub";
 
 const GMAIL_TAB = { id: 7, url: "https://mail.google.com/mail/u/0/#inbox" };
@@ -12,21 +15,25 @@ const hideButton = () => byId<HTMLButtonElement>("hideItems");
 const applyToggle = () => byId<HTMLInputElement>("applyHidden");
 const resetButton = () => byId<HTMLButtonElement>("resetHidden");
 
+// The real popup markup, so tests and popup.html can't drift apart.
+const POPUP_BODY = readFileSync(
+  join(__dirname, "../../public/popup.html"),
+  "utf8"
+).match(/<body>([\s\S]*)<\/body>/)![1];
+
 const openPopup = async (
   tab: { id: number; url?: string },
-  stored?: unknown
+  stored?: unknown,
+  profiles?: unknown
 ) => {
   jest.resetModules();
   const stub = installChromeStub();
   if (stored) stub.store[HIDDEN_ITEMS_KEY] = stored;
+  if (profiles) stub.store[HIDDEN_PROFILES_KEY] = profiles;
   stub.chrome.tabs.query.mockResolvedValue([tab]);
   stub.chrome.tabs.sendMessage.mockResolvedValue(undefined);
   (window as any).close = jest.fn();
-  document.body.innerHTML = `
-    <button id="hideItems"></button>
-    <label><input type="checkbox" id="applyHidden" /> <span id="hiddenCount"></span></label>
-    <button id="resetHidden"></button>
-    <p id="popupNotice" hidden></p>`;
+  document.body.innerHTML = POPUP_BODY; // scripts in it are not executed
   require("../popup");
   await flushPromises();
   return stub;
@@ -92,4 +99,89 @@ test("reset clears the saved selectors", async () => {
   });
   expect(byId("hiddenCount").textContent).toBe("Apply hidden items (0)");
   expect(resetButton().disabled).toBe(true);
+});
+
+describe("saved configurations", () => {
+  const nameInput = () => byId<HTMLInputElement>("profileName");
+  const saveButton = () => byId<HTMLButtonElement>("saveProfile");
+  const rows = () =>
+    Array.from(byId("profileList").querySelectorAll<HTMLElement>("li"));
+  const rowButton = (row: HTMLElement, label: string) =>
+    row.querySelector<HTMLButtonElement>(`button[aria-label^="${label}"]`)!;
+  const typeName = (name: string) => {
+    nameInput().value = name;
+    nameInput().dispatchEvent(new Event("input"));
+  };
+  const focus = { name: "Focus", selectors: ["#a", "#b"] };
+
+  test("lists saved configurations, marking the active one", async () => {
+    await openPopup(
+      GMAIL_TAB,
+      { selectors: ["#b", "#a"], enabled: true },
+      { profiles: [focus, { name: "Minimal", selectors: ["#c"] }] }
+    );
+    expect(rows().map((r) => r.querySelector(".name")!.textContent)).toEqual([
+      "✓ Focus (2)",
+      "Minimal (1)",
+    ]);
+  });
+
+  test("shows an empty hint when nothing is saved", async () => {
+    await openPopup(GMAIL_TAB);
+    expect(rows()).toHaveLength(0);
+    expect(byId("profileEmpty").hidden).toBe(false);
+  });
+
+  test("save is enabled only with a name and something hidden", async () => {
+    await openPopup(GMAIL_TAB, { selectors: ["#a"], enabled: true });
+    expect(saveButton().disabled).toBe(true);
+    typeName("   ");
+    expect(saveButton().disabled).toBe(true);
+    typeName("Focus");
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  test("saving stores the current hidden items under the name", async () => {
+    const stub = await openPopup(GMAIL_TAB, {
+      selectors: ["#a", "#b"],
+      enabled: true,
+    });
+    typeName(" Focus ");
+    saveButton().click();
+    await flushPromises();
+    expect(stub.store[HIDDEN_PROFILES_KEY]).toEqual({ profiles: [focus] });
+    expect(nameInput().value).toBe("");
+    expect(rows()).toHaveLength(1);
+  });
+
+  test("apply replaces the hidden items with the configuration", async () => {
+    const stub = await openPopup(
+      GMAIL_TAB,
+      { selectors: ["#z"], enabled: false },
+      { profiles: [focus] }
+    );
+    rowButton(rows()[0], "Apply").click();
+    await flushPromises();
+    expect(stub.store[HIDDEN_ITEMS_KEY]).toEqual({
+      selectors: ["#a", "#b"],
+      enabled: true,
+    });
+    expect(byId("hiddenCount").textContent).toBe("Apply hidden items (2)");
+    expect(rows()[0].querySelector(".name")!.textContent).toBe("✓ Focus (2)");
+  });
+
+  test("delete removes the configuration", async () => {
+    const stub = await openPopup(GMAIL_TAB, undefined, { profiles: [focus] });
+    rowButton(rows()[0], "Delete").click();
+    await flushPromises();
+    expect(stub.store[HIDDEN_PROFILES_KEY]).toEqual({ profiles: [] });
+    expect(rows()).toHaveLength(0);
+  });
+
+  test("renders names as text, not HTML", async () => {
+    await openPopup(GMAIL_TAB, undefined, {
+      profiles: [{ name: "<img src=x>", selectors: [] }],
+    });
+    expect(rows()[0].querySelector("img")).toBeNull();
+  });
 });

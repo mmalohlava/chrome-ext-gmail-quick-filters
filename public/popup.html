@@ -43,8 +43,64 @@
         border-top: 1px solid #dadce0;
         margin: 6px 4px;
       }
+      .heading {
+        padding: 4px 10px;
+        color: #5f6368;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      #profileList {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      #profileList li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 4px 3px 10px;
+        border-radius: 6px;
+      }
+      #profileList li:hover {
+        background: #f1f3f4;
+      }
+      #profileList .name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #profileList button,
+      #profileForm button {
+        padding: 3px 8px;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        background: #ffffff;
+        color: inherit;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #profileForm button:disabled {
+        color: #9aa0a6;
+        cursor: default;
+      }
+      #profileForm {
+        display: flex;
+        gap: 6px;
+        padding: 6px 4px 2px 10px;
+      }
+      #profileName {
+        flex: 1;
+        min-width: 0;
+        padding: 4px 8px;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        font: inherit;
+      }
+      .hint,
       #popupNotice {
-        margin: 6px 10px 2px;
+        margin: 2px 10px;
         color: #5f6368;
         font-size: 12px;
       }
@@ -58,6 +114,14 @@
       <span id="hiddenCount">Apply hidden items (0)</span>
     </label>
     <button class="item" id="resetHidden">↺ Reset hidden items</button>
+    <hr />
+    <div class="heading">Saved configurations</div>
+    <ul id="profileList"></ul>
+    <p id="profileEmpty" class="hint">Hide some items, then save them under a name.</p>
+    <form id="profileForm">
+      <input type="text" id="profileName" placeholder="Name" maxlength="40" />
+      <button type="submit" id="saveProfile">Save current</button>
+    </form>
     <p id="popupNotice" hidden></p>
     <script src="js/popup.js"></script>
   </body>

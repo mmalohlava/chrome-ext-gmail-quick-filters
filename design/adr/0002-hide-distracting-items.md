@@ -38,6 +38,13 @@ its class names are obfuscated but fairly stable.
   (text, media or controls; `display: none` siblings don't count). ArrowUp/ArrowDown
   widen or narrow the selection manually and Enter hides it.
 
+- **Named configurations:** the current selectors can be saved under a name and
+  applied later from the popup. They are stored under their own sync key
+  (`hiddenProfiles`) so they don't share the 8 KB quota with the active hidden items.
+  Applying copies the profile's selectors into `hiddenItems` and enables hiding.
+  Profiles are snapshots: later picks change only the active set until it is saved
+  again under the same name.
+
 ## Consequences
 
 - Hiding is cheap and has no flicker. Toggling and resetting are instant in all open
@@ -47,4 +54,4 @@ its class names are obfuscated but fairly stable.
   be picked again. Reset clears selectors that no longer match.
 - Per-item un-hiding isn't supported; Reset is all-or-nothing.
 - `chrome.storage.sync` limits one item to about 8 KB, which is roughly a few dozen
-  selectors.
+  selectors for the active set. All named profiles together share another 8 KB.

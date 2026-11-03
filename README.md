@@ -20,7 +20,9 @@ A Chrome extension (Manifest V3) that adds quick search filters and visual cues 
   Esc to finish. The outline shows what will be hidden: it automatically covers
   wrappers that hold nothing else, ↑/↓ widens or narrows it, and Enter hides it. The selection is remembered and synced. **Apply hidden items** shows
   hidden items again temporarily (untick) or re-applies them (tick); **Reset hidden
-  items** forgets them all.
+  items** forgets them all. Under **Saved configurations**, type a name and click **Save
+  current** to keep the current set (an existing name is overwritten). **Apply**
+  switches to a saved set and 🗑 deletes it; ✓ marks the set that is currently applied.
 - **Pinned header**: when you scroll through a thread, a bar at the top of the reading
   pane shows the subject and the current message's sender and date.
 
