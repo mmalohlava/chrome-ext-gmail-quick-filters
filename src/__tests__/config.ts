@@ -9,6 +9,7 @@ import {
   onConfigChanged,
   FilterConfig,
 } from "../config";
+import { installChromeStub } from "../test_support/chrome_stub";
 
 describe("mergeConfig", () => {
   test("returns defaults when nothing stored", () => {
@@ -58,29 +59,10 @@ describe("resolveConfig", () => {
 });
 
 describe("storage integration", () => {
-  let store: Record<string, unknown>;
-  let changeListener: ((changes: any, area: string) => void) | undefined;
+  let stub: ReturnType<typeof installChromeStub>;
 
   beforeEach(() => {
-    store = {};
-    changeListener = undefined;
-    (global as any).chrome = {
-      storage: {
-        sync: {
-          get: (key: string, cb: (items: Record<string, unknown>) => void) =>
-            cb({ [key]: store[key] }),
-          set: (items: Record<string, unknown>, cb: () => void) => {
-            Object.assign(store, items);
-            cb();
-          },
-        },
-        onChanged: {
-          addListener: (cb: (changes: any, area: string) => void) => {
-            changeListener = cb;
-          },
-        },
-      },
-    };
+    stub = installChromeStub();
   });
 
   test("loadConfig returns defaults when storage empty", async () => {
@@ -94,17 +76,14 @@ describe("storage integration", () => {
       snooze: "label:pinned",
     };
     await saveConfig(config);
-    expect(store[STORAGE_KEY]).toEqual(config);
+    expect(stub.store[STORAGE_KEY]).toEqual(config);
     expect(await loadConfig()).toEqual(config);
   });
 
   test("onConfigChanged fires for sync changes to our key", () => {
     const cb = jest.fn();
     onConfigChanged(cb);
-    changeListener!(
-      { [STORAGE_KEY]: { newValue: { today: "x" } } },
-      "sync"
-    );
+    stub.emitChange({ [STORAGE_KEY]: { newValue: { today: "x" } } }, "sync");
     expect(cb).toHaveBeenCalledWith({
       today: "x",
       yesterday: DEFAULT_CONFIG.yesterday,
@@ -115,8 +94,8 @@ describe("storage integration", () => {
   test("onConfigChanged ignores other areas and keys", () => {
     const cb = jest.fn();
     onConfigChanged(cb);
-    changeListener!({ [STORAGE_KEY]: { newValue: {} } }, "local");
-    changeListener!({ somethingElse: { newValue: {} } }, "sync");
+    stub.emitChange({ [STORAGE_KEY]: { newValue: {} } }, "local");
+    stub.emitChange({ somethingElse: { newValue: {} } }, "sync");
     expect(cb).not.toHaveBeenCalled();
   });
 });

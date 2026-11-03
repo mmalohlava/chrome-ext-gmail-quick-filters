@@ -2,12 +2,18 @@
  * @jest-environment jsdom
  */
 import { DEFAULT_CONFIG, STORAGE_KEY } from "../config";
+import {
+  flushPromises as flushObservers,
+  installChromeStub,
+} from "../test_support/chrome_stub";
+import { HIDDEN_ITEMS_KEY, START_HIDE_PICKER } from "../hidden_items";
+import { HIDDEN_STYLE_ID, PICKER_BANNER_ID } from "../hide_picker";
 
+let stub: ReturnType<typeof installChromeStub>;
 let store: Record<string, unknown>;
 let searchClick: jest.Mock;
 const observers: MutationObserver[] = [];
 
-const flushObservers = () => new Promise((resolve) => setTimeout(resolve, 0));
 const byId = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const searchValue = () =>
@@ -24,20 +30,9 @@ const dialogButton = (text: string) =>
   ).find((b) => b.textContent === text)!;
 
 beforeAll(() => {
-  store = {};
-  (global as any).chrome = {
-    storage: {
-      sync: {
-        get: (key: string, cb: (items: Record<string, unknown>) => void) =>
-          cb({ [key]: store[key] }),
-        set: (items: Record<string, unknown>, cb: () => void) => {
-          Object.assign(store, items);
-          cb();
-        },
-      },
-      onChanged: { addListener: () => undefined },
-    },
-  };
+  stub = installChromeStub();
+  store = stub.store;
+  store[HIDDEN_ITEMS_KEY] = { selectors: ["#preHidden"], enabled: true };
   (global as any).requestAnimationFrame = () => 0;
   const NativeObserver = MutationObserver;
   (global as any).MutationObserver = class extends NativeObserver {
@@ -179,5 +174,44 @@ describe("sender highlighting", () => {
     expect(
       header.querySelector("[data-quick-filters-domain]")?.textContent
     ).toBe("example.com");
+  });
+});
+
+describe("hidden items", () => {
+  const hiddenCss = () => byId(HIDDEN_STYLE_ID)?.textContent ?? "";
+
+  test("applies the stored hidden items on load", () => {
+    expect(hiddenCss()).toContain("#preHidden { display: none !important; }");
+  });
+
+  test("picker message hides the clicked element and saves it", () => {
+    const promo = document.createElement("aside");
+    promo.className = "promo";
+    document.body.appendChild(promo);
+
+    stub.sendMessage({ type: START_HIDE_PICKER });
+    promo.click();
+    byId(`${PICKER_BANNER_ID}`).querySelector("button")!.click();
+
+    expect(store[HIDDEN_ITEMS_KEY]).toEqual({
+      selectors: ["#preHidden", "aside.promo"],
+      enabled: true,
+    });
+    expect(hiddenCss()).toContain("aside.promo { display: none !important; }");
+  });
+
+  test("follows changes made from the popup", () => {
+    stub.emitChange(
+      {
+        [HIDDEN_ITEMS_KEY]: { newValue: { selectors: ["#a"], enabled: false } },
+      },
+      "sync"
+    );
+    expect(hiddenCss()).toBe("");
+  });
+
+  test("ignores unrelated messages", () => {
+    stub.sendMessage({ type: "other" });
+    expect(byId(PICKER_BANNER_ID)).toBeNull();
   });
 });

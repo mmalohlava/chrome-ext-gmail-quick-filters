@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Gmail Quick Filters",
-  "description": "Quick Today/Yesterday/Snoozed search filters, date highlighting and sender cues for Gmail.",
+  "description": "Quick Today/Yesterday/Snoozed search filters, date highlighting, sender cues and hiding of distracting items for Gmail.",
   "version": "1.0",
   "action": {
     "default_icon": {
       "16": "icon.png"
     },
-    "default_title": "Gmail Quick Filters"
+    "default_title": "Gmail Quick Filters",
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {

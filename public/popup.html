@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+        padding: 6px;
+        width: 260px;
+        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: #202124;
+        background: #ffffff;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 10px;
+        border: none;
+        border-radius: 6px;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .item:hover:not(:disabled),
+      label.item:hover {
+        background: #e8f0fe;
+      }
+      .item:disabled,
+      .item:has(input:disabled) {
+        color: #9aa0a6;
+        cursor: default;
+      }
+      .item input {
+        margin: 0;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #dadce0;
+        margin: 6px 4px;
+      }
+      #popupNotice {
+        margin: 6px 10px 2px;
+        color: #5f6368;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <button class="item" id="hideItems">👁 Hide Distracting Items…</button>
+    <hr />
+    <label class="item">
+      <input type="checkbox" id="applyHidden" />
+      <span id="hiddenCount">Apply hidden items (0)</span>
+    </label>
+    <button class="item" id="resetHidden">↺ Reset hidden items</button>
+    <p id="popupNotice" hidden></p>
+    <script src="js/popup.js"></script>
+  </body>
+</html>

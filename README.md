@@ -15,6 +15,12 @@ A Chrome extension (Manifest V3) that adds quick search filters and visual cues 
   colored chips, adapted to Gmail's light or dark theme.
 - **Sender cues**: in an opened email, H2O.ai senders get a yellow header; every other
   sender gets a red badge with their domain.
+- **Hide distracting items** (toolbar popup): click the extension icon and choose
+  **Hide Distracting Items…**, click any Gmail element to hide it, and press **Done** or
+  Esc to finish. The outline shows what will be hidden: it automatically covers
+  wrappers that hold nothing else, ↑/↓ widens or narrows it, and Enter hides it. The selection is remembered and synced. **Apply hidden items** shows
+  hidden items again temporarily (untick) or re-applies them (tick); **Reset hidden
+  items** forgets them all.
 - **Pinned header**: when you scroll through a thread, a bar at the top of the reading
   pane shows the subject and the current message's sender and date.
 

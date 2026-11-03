@@ -1,3 +1,5 @@
+import { createSyncStore } from "./storage";
+
 /**
  * Persistent, user-editable Gmail search queries for the "T" / "Y" filter
  * buttons. Stored in chrome.storage.sync so the configuration follows the user
@@ -43,14 +45,12 @@ export const FILTERS: FilterDefinition[] = [
 
 export const STORAGE_KEY = "filterConfig";
 
-/**
- * Merge stored (possibly partial) values onto the defaults so a missing or
- * partially-written config still yields a complete, valid FilterConfig.
- */
-export const mergeConfig = (stored?: Partial<FilterConfig> | null): FilterConfig => ({
-  ...DEFAULT_CONFIG,
-  ...(stored ?? {}),
-});
+// Persisted so the queries follow the user across tabs and devices.
+const store = createSyncStore(STORAGE_KEY, DEFAULT_CONFIG);
+export const mergeConfig = store.merge;
+export const loadConfig = store.load;
+export const saveConfig = store.save;
+export const onConfigChanged = store.onChanged;
 
 /**
  * Turn queries entered by the user into a config: trim each one and fall back
@@ -62,34 +62,4 @@ export const resolveConfig = (entered: FilterConfig): FilterConfig => {
     config[key] = entered[key].trim() || DEFAULT_CONFIG[key];
   });
   return config;
-};
-
-/**
- * Load the saved configuration, falling back to defaults for any missing field.
- */
-export const loadConfig = (): Promise<FilterConfig> =>
-  new Promise((resolve) => {
-    chrome.storage.sync.get(STORAGE_KEY, (items) => {
-      resolve(mergeConfig(items?.[STORAGE_KEY] as Partial<FilterConfig>));
-    });
-  });
-
-/**
- * Persist the configuration.
- */
-export const saveConfig = (config: FilterConfig): Promise<void> =>
-  new Promise((resolve) => {
-    chrome.storage.sync.set({ [STORAGE_KEY]: config }, () => resolve());
-  });
-
-/**
- * Subscribe to configuration changes (e.g. edited in another Gmail tab) so the
- * buttons stay in sync without a reload.
- */
-export const onConfigChanged = (callback: (config: FilterConfig) => void): void => {
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "sync" && changes[STORAGE_KEY]) {
-      callback(mergeConfig(changes[STORAGE_KEY].newValue as Partial<FilterConfig>));
-    }
-  });
 };

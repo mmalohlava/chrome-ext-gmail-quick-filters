@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A Manifest V3 Chrome extension that injects UI into Gmail (`https://mail.google.com/*`)
-via a single content script. There is no background/service worker or popup. Features:
-T/Y/S filter buttons plus a ⚙ config dialog, today/yesterday date highlighting, sender
-cues (H2O.ai header highlight, domain badge for others), and a pinned thread header.
+via a content script, plus a toolbar popup. There is no background/service worker.
+Features: T/Y/S filter buttons plus a ⚙ config dialog, today/yesterday date
+highlighting, sender cues (H2O.ai header highlight, domain badge for others), a pinned
+thread header, and Safari-style "Hide Distracting Items".
 
 ## Commands
 
@@ -49,6 +50,21 @@ unpacked" the `dist/` directory. After a build, reload the extension to pick up 
   `FILTER_BUTTON_COLORS` in `content_script.ts`. Also holds storage helpers
   (`chrome.storage.sync`, key `filterConfig`) and `resolveConfig` (trim, blank →
   default).
+- **Hide distracting items** (`design/adr/0002-hide-distracting-items.md`):
+  - `src/hidden_items.ts`: state `{ selectors, enabled }` in storage key
+    `hiddenItems`, `withSelector`, `hideCss`, and the `START_HIDE_PICKER` message
+    type.
+  - `src/hide_picker.ts`: `selectorFor` (stable selector for a clicked element;
+    skips Gmail's `:xx` ids), `applyHiddenStyle` (one `<style>` element), `pickTarget` (widens a
+    hovered element to the outermost wrapper with no other visible content, so no
+    empty band is left behind), and `startHidePicker` (capture-phase listeners,
+    outline, ↑/↓/Enter/Esc keys, Done banner).
+  - `src/popup.ts` + `public/popup.html`: the toolbar popup. Toggle and reset write
+    storage directly; the content script follows `storage.onChanged`. Only starting
+    the picker sends a message to the active Gmail tab.
+- **`src/storage.ts`**: `createSyncStore(key, defaults)` gives `merge`, `load`, `save`
+  and `onChanged` for a `chrome.storage.sync` value; used by config and hidden items.
+- **`src/dom.ts`**: shared `setStyle` helper.
 - **`src/utils.ts`**: date formatting, theme colors and luminance, sender domain
   helpers. `formatDate` produces `"Tue, Dec 8, 2024"` (non-padded day) because it is
   substring-matched against Gmail's date `title` attribute.
@@ -60,15 +76,19 @@ fragile part: Gmail markup changes break the extension, not the build.
 
 ## Testing
 
-- Pure modules are tested under the default node environment.
-- `src/__tests__/content_script.ts` uses jsdom (`@jest-environment jsdom` docblock): it
-  stubs `chrome.storage` and `requestAnimationFrame`, builds minimal Gmail-like markup,
-  `require`s the content script, and disconnects its observers in `afterAll`.
+- Pure modules are tested under the default node environment; DOM modules use jsdom
+  via an `@jest-environment jsdom` docblock.
+- `src/test_support/chrome_stub.ts` (outside `__tests__/`, so Jest doesn't run it as a
+  test) installs an in-memory `chrome` global: `storage.sync` (fires `onChanged` like
+  Chrome), `runtime.onMessage`, and mockable `tabs`.
+- Entry-point tests (`content_script.ts`, `popup.ts`) build minimal markup and then
+  `require` the module. The content-script test disconnects its observers in
+  `afterAll`.
 
 ## Build & config
 
-- **Webpack** (`webpack/`): `webpack.common.js` holds shared config (single
-  `content_script` entry, `ts-loader`, copies everything from `public/` into `dist/`),
+- **Webpack** (`webpack/`): `webpack.common.js` holds shared config (`content_script`
+  and `popup` entries, `ts-loader`, copies everything from `public/` into `dist/`),
   merged with `webpack.dev.js` / `webpack.prod.js`. Edit `public/manifest.json` and
   `public/icon.png`, never the copies in `dist/`.
 - **TypeScript**: `tsconfig.json` for the build, `tsconfig.test.json` for ts-jest.

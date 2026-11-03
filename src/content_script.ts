@@ -9,6 +9,7 @@ import {
   parseRgb,
   senderDomain,
 } from "./utils";
+import { setStyle } from "./dom";
 import { formatSender, pickCurrentMessage } from "./pinned_header";
 import {
   DEFAULT_CONFIG,
@@ -20,6 +21,16 @@ import {
   resolveConfig,
   saveConfig,
 } from "./config";
+import {
+  DEFAULT_HIDDEN_ITEMS,
+  HiddenItems,
+  loadHiddenItems,
+  onHiddenItemsChanged,
+  saveHiddenItems,
+  START_HIDE_PICKER,
+  withSelector,
+} from "./hidden_items";
+import { applyHiddenStyle, startHidePicker } from "./hide_picker";
 
 // The filter buttons keep a fixed, light-theme look regardless of Gmail's theme,
 // so the T/Y backgrounds use the light highlight colors.
@@ -38,10 +49,6 @@ const DOMAIN_BADGE_COLORS = {
 // Live filter-query configuration. Seeded with defaults and kept up to date from
 // chrome.storage so button clicks always use the latest queries without a reload.
 let currentConfig: FilterConfig = { ...DEFAULT_CONFIG };
-
-const setStyle = (el: HTMLElement, styles: Partial<CSSStyleDeclaration>) => {
-  Object.assign(el.style, styles);
-};
 
 /**
  * Detect whether Gmail is rendering in a dark theme by inspecting the actual
@@ -503,6 +510,23 @@ void loadConfig().then((config) => {
 });
 onConfigChanged((config) => {
   currentConfig = config;
+});
+
+// Hidden items: apply the saved selection, follow changes from the popup, and
+// let the popup start the picker in this tab.
+let hiddenItems: HiddenItems = { ...DEFAULT_HIDDEN_ITEMS };
+const setHiddenItems = (state: HiddenItems) => {
+  hiddenItems = state;
+  applyHiddenStyle(state);
+};
+void loadHiddenItems().then(setHiddenItems);
+onHiddenItemsChanged(setHiddenItems);
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== START_HIDE_PICKER) return;
+  startHidePicker((selector) => {
+    setHiddenItems(withSelector(hiddenItems, selector));
+    void saveHiddenItems(hiddenItems);
+  });
 });
 
 // Run once for the initial render, then keep both features in sync on every
