@@ -333,8 +333,10 @@ const senderHeader = (sender: HTMLElement): HTMLElement =>
   sender.closest<HTMLElement>(".gE") ?? sender;
 
 const DOMAIN_BADGE_ATTR = "data-quick-filters-domain";
+const COPIED_FEEDBACK_MS = 1200;
 
-// Show a colored badge with the sender's domain centered in the header block.
+// Show a colored badge with the sender's domain centered in the header block;
+// clicking it copies the domain to the clipboard.
 const addDomainBadge = (header: HTMLElement, domain: string) => {
   const existing = header.querySelector(`[${DOMAIN_BADGE_ATTR}]`);
   // Only touch the DOM when needed: inserting fires the body MutationObserver,
@@ -358,7 +360,15 @@ const addDomainBadge = (header: HTMLElement, domain: string) => {
     fontSize: "13px",
     fontWeight: "500",
     whiteSpace: "nowrap",
-    pointerEvents: "none", // never block clicks on the header underneath
+    cursor: "copy",
+  });
+  badge.title = "Click to copy the domain";
+  badge.addEventListener("click", (e) => {
+    e.stopPropagation(); // keep Gmail from collapsing the message
+    void navigator.clipboard.writeText(domain).then(() => {
+      badge.textContent = "Copied ✓";
+      setTimeout(() => (badge.textContent = domain), COPIED_FEEDBACK_MS);
+    });
   });
   header.style.position = "relative"; // anchor for the centered badge
   header.appendChild(badge);

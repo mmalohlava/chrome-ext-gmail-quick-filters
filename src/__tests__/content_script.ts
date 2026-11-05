@@ -175,6 +175,31 @@ describe("sender highlighting", () => {
       header.querySelector("[data-quick-filters-domain]")?.textContent
     ).toBe("example.com");
   });
+
+  test("clicking the domain badge copies it and confirms briefly", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const header = openMessage("a@varnish-software.com");
+    const headerClick = jest.fn();
+    header.addEventListener("click", headerClick);
+    await flushObservers();
+    const badge = header.querySelector<HTMLElement>(
+      "[data-quick-filters-domain]"
+    )!;
+
+    jest.useFakeTimers();
+    try {
+      badge.click();
+      await Promise.resolve(); // let the clipboard write settle
+      expect(writeText).toHaveBeenCalledWith("varnish-software.com");
+      expect(headerClick).not.toHaveBeenCalled(); // Gmail won't collapse it
+      expect(badge.textContent).toBe("Copied ✓");
+      jest.runAllTimers();
+      expect(badge.textContent).toBe("varnish-software.com");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("hidden items", () => {

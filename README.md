@@ -14,7 +14,7 @@ A Chrome extension (Manifest V3) that adds quick search filters and visual cues 
 - **Date highlighting**: today's and yesterday's dates in the email list are shown as
   colored chips, adapted to Gmail's light or dark theme.
 - **Sender cues**: in an opened email, H2O.ai senders get a yellow header; every other
-  sender gets a red badge with their domain.
+  sender gets a red badge with their domain. Click the badge to copy the domain.
 - **Hide distracting items** (toolbar popup): click the extension icon and choose
   **Hide Distracting Items…**, click any Gmail element to hide it, and press **Done** or
   Esc to finish. The outline shows what will be hidden: it automatically covers
